@@ -5,6 +5,8 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import javax.swing.table.JTableHeader;
 import javax.swing.ImageIcon;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Random;
@@ -22,6 +24,7 @@ public class GestionClientSav extends JFrame {
 
     // Générez un numéro de ticket aléatoire
     Random random = new Random();
+
 
     private int genererNumeroTicketUnique() {
         int numeroTicket;
@@ -82,6 +85,8 @@ public class GestionClientSav extends JFrame {
         pack();
         setLocationRelativeTo(null);
         setVisible(true);
+
+
 
         JPanel formulairePanel = new JPanel(new BorderLayout(10, 10));
         JPanel inputPanel = new JPanel(new GridLayout(8, 2, 10, 10));
@@ -204,6 +209,9 @@ public class GestionClientSav extends JFrame {
         pack();
         setLocationRelativeTo(null);
         setVisible(true);
+
+
+
 
         // Ajoutez un bouton "Supprimer" à votre inputPanel
         JButton supprimerButton = new JButton("Supprimer");
@@ -338,11 +346,128 @@ public class GestionClientSav extends JFrame {
         });
 
 
+        header.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                int columnIndex = tableau.columnAtPoint(e.getPoint());
+                if (columnIndex == 6) { // "État du ticket" est la 7e colonne (indice 6 en partant de 0)
+                    afficherFenetreEtatTicket();
+                }
+            }
+        });
 
+        tablePanel.add(header, BorderLayout.NORTH);
 
 
 
     }
+// Partie JFRAME ETAT TICKET
+private void afficherFenetreEtatTicket() {
+    JFrame fenetreEtatTicket = new JFrame("État du Ticket");
+
+    // Créez une nouvelle JTable pour afficher les tickets
+    String[] columnNames = {"Nom", "Prénom", "Téléphone", "Réclamation", "Date", "Numéro de ticket", "État du ticket"};
+    DefaultTableModel tableModel = new DefaultTableModel(columnNames, 0);
+    JTable tableauTickets = new JTable(tableModel);
+
+    // Obtenez les données de la base de données et remplissez la JTable
+    chargerDonneesTicketsDepuisBaseDeDonnees(tableModel);
+
+    // Ajoutez la JTable à un JScrollPane pour permettre le défilement
+    JScrollPane scrollPane = new JScrollPane(tableauTickets);
+
+    // Ajoutez le JScrollPane à la nouvelle fenêtre
+    fenetreEtatTicket.add(scrollPane);
+
+    // Ajoutez un JLabel pour afficher le nombre de tickets en cours ou ouverts
+    JLabel nombreTicketsLabel = new JLabel("Nombre de Tickets en cours ou ouverts : " + getNombreTicketsEnCoursOuverts());
+    fenetreEtatTicket.add(nombreTicketsLabel, BorderLayout.SOUTH);
+
+    // Ajoutez un bouton "Fermer" avec un gestionnaire d'événements pour fermer la fenêtre
+    JButton fermerButton = new JButton("Fermer");
+
+
+    fermerButton.addActionListener(new ActionListener() {
+        @Override
+        public void actionPerformed(ActionEvent e) {
+            // Fermez la fenêtre et libérez la mémoire
+            fenetreEtatTicket.dispose();
+        }
+    });
+
+
+    fenetreEtatTicket.add(fermerButton, BorderLayout.EAST);
+
+    fenetreEtatTicket.setSize(600, 400);
+    fenetreEtatTicket.setLocationRelativeTo(null);
+    fenetreEtatTicket.setVisible(true);
+}
+
+    private int getNombreTicketsEnCoursOuverts() {
+        int nombreTickets = 0;
+        try {
+            // Créez une requête SQL COUNT pour obtenir le nombre de tickets en cours ou ouverts
+            String query = "SELECT COUNT(*) FROM dossier_sav WHERE etat_ticket IN ('Ouvert', 'En cours')";
+
+            // Créez une instruction SQL
+            Statement statement = conn.createStatement();
+
+            // Exécutez la requête et obtenez le résultat
+            ResultSet resultSet = statement.executeQuery(query);
+
+            // Récupérez le résultat et affectez-le à la variable nombreTickets
+            if (resultSet.next()) {
+                nombreTickets = resultSet.getInt(1);
+            }
+
+            // Fermez le résultat et l'instruction
+            resultSet.close();
+            statement.close();
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(null, "Erreur lors de la récupération du nombre de tickets : " + ex.getMessage(), "Erreur SQL", JOptionPane.ERROR_MESSAGE);
+        }
+        return nombreTickets;
+    }
+
+
+    private void chargerDonneesTicketsDepuisBaseDeDonnees(DefaultTableModel tableModel) {
+        try {
+            // Créez une requête SQL SELECT pour récupérer les données des tickets dans les états "Ouvert" ou "En cours"
+            String query = "SELECT nom, prenom, telephone, reclamation, date, numero_ticket, etat_ticket FROM dossier_sav WHERE etat_ticket IN ('Ouvert', 'En cours')";
+
+            // Créez une instruction SQL
+            Statement statement = conn.createStatement();
+
+            // Exécutez la requête et obtenez un résultat (ensemble de résultats)
+            ResultSet resultSet = statement.executeQuery(query);
+
+            // Effacez toutes les lignes existantes dans le modèle de tableau Swing
+            tableModel.setRowCount(0);
+
+            // Parcourez les résultats et ajoutez chaque ligne au modèle de tableau Swing
+            while (resultSet.next()) {
+                String nom = resultSet.getString("nom");
+                String prenom = resultSet.getString("prenom");
+                String telephone = resultSet.getString("telephone");
+                String reclamation = resultSet.getString("reclamation");
+                String date = resultSet.getString("date");
+                int numeroTicket = resultSet.getInt("numero_ticket");
+                String etatTicket = resultSet.getString("etat_ticket");
+
+                String[] rowData = {nom, prenom, telephone, reclamation, date, String.valueOf(numeroTicket), etatTicket};
+                tableModel.addRow(rowData);
+            }
+
+            // Fermez le résultat et l'instruction
+            resultSet.close();
+            statement.close();
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(null, "Erreur lors de la récupération des données : " + ex.getMessage(), "Erreur SQL", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
 
 
 
